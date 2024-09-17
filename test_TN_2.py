@@ -9,6 +9,8 @@ from terrestrial import Terrestrial_Communication
 import user_selection 
 import plot
 
+with open('TerCom_circle_mesh.pkl', 'rb') as file:
+    TerCom = pickle.load(file)
 
 Points_Mesh = Points_Circle_Mesh()
 points = Points_Mesh.get_mesh_points()
@@ -18,15 +20,12 @@ for i, usr_pos in enumerate(points):
     ground_users.append(np.array([i,usr_pos[0], usr_pos[1]]))
 ground_users = np.array(ground_users)
 
-Base_stations = Base_Stations(ground_users)
-Base_stations.set_base_stations()
+Base_stations = TerCom.bss
 tbs = Base_stations.get_tbs_positions()
 
-print(len(Base_stations.tbs_list[1].sector_list[1].sec_pot_users))
-#plot.plot_mesh_point_station(points, tbs)
+plot.plot_mesh_point_station(points, tbs)
 
-TerCom = Terrestrial_Communication(ground_users, Base_stations)
-TerCom.set_tn()
-with open('TerCom_circle_mesh_1ngbtbs.pkl','wb') as file:
-    pickle.dump(TerCom, file)
-plot.plot_RSRP_from_tbs(points, TerCom.g,save='RSRP_tbs')
+ground_users, Haps_users, Null_points = user_selection.select_users()
+
+plot.plot_RSRP_from_tbs(points, TerCom.g)
+print(TerCom.g.shape)
