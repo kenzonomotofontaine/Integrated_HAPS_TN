@@ -3,8 +3,13 @@ class Parameters:
     Nb_points = 1261
     Nb_HAPS_ant_ele = 16*16
     Nb_tbs = 48
+<<<<<<< HEAD
     Nb_HAPS_users = 10
     Nb_null_points = 2
+=======
+    Nb_HAPS_users = 4
+    Nb_null_points = 4
+>>>>>>> 8e1498c (commit better beamforming update)
     Nb_ground_users = 30
     Mesh_type = 'circle'
     Mesh_sample = 5 #km
