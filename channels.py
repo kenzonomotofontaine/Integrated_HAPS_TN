@@ -33,12 +33,9 @@ def positions_from_python_to_matlab(input):
 
 
 class TBS_channels:
-    def __init__(self, tbs, points, users) -> None:
+    def __init__(self) -> None:
         self.Nb_points = Parameters.Nb_points
         self.Nb_tbs = Parameters.Nb_tbs
-        self.tbs = tbs 
-        self.points = points 
-        self.users = users
 
     def cost231hata(self, hb, hu, f, ph, pu, area):
         n = 0
@@ -49,8 +46,12 @@ class TBS_channels:
         if area == 2: # metropolitain centres
             C = 3
         L50dB = 46.3 + 33.9 * np.log10(f) - 13.82 * np.log10(hb) - ahMS + (44.9 - 6.55 * np.log10(hb)) * np.log(d) + C
-        #return 10**(-L50dB/20)
-        return L50dB
+        C_h = 0.8 + (1.1*np.log10(f) - 0.7)*hu -1.56*np.log(f)
+        L_u = 69.55 + 26.16*np.log10(f) -13.82*np.log10(hb) - C_h + (44.9 - 6.55*np.log10(hb))*np.log10(d) #urban
+        L_su = L_u - 2*(np.log10(f/28))**2 -5.4 #suburban
+        L_o = L_u - 4.78*(np.log10(f))**2 + 18.33*np.log10(f) -40.94  #open
+        return 10**(-L_o/20)
+        #return L50dB
     
     def get_cost231hata_pathloss_to_points(self, tbs, points):
         """tbs and points being the arrays of tbs and points locations."""

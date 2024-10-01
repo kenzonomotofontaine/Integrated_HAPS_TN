@@ -8,7 +8,7 @@ class Base_Stations:
         self.generation_mode = Parameters.TBS_generation_mode
         self.Nb_tbs = Parameters.Nb_tbs
         self.tbs_list = []
-        self.max_gains = Parameters.TBS_max_gains
+        self.max_gain = Parameters.TBS_max_gain
         self.sector_size = Parameters.TBS_sector_size
         self.ground_users = ground_users # is a np array of form [idx of user point, x, y]
         self.tbs_range = Parameters.TBS_range
@@ -21,6 +21,7 @@ class Base_Stations:
             mesh = Station_Circle_Mesh_Poisson()
             self.tbs_positions = mesh.get_mesh_stations()
         self.Nb_tbs = mesh.Nb_points
+
     
     def set_base_stations(self):
         self.set_base_stations_positions()
@@ -34,7 +35,7 @@ class Base_Stations:
             for i in idx:
                 tbs_pot_users[i].append(self.ground_users[usr])
         for i in range(self.Nb_tbs):
-            bs = Base_Station(self.tbs_positions[i,2], self.tbs_positions[i,0:2], self.max_gains[i], self.sector_size, tbs_pot_users[i])
+            bs = Base_Station(self.tbs_positions[i,2], self.tbs_positions[i,0:2], self.max_gain, self.sector_size, tbs_pot_users[i])
             self.tbs_list.append(bs)
         
     def get_tbs_positions(self):
@@ -68,29 +69,36 @@ class Base_Station:
 
     def set_sectors(self):
         dir_unit = 360 / self.sec_size
-        user_directions = self.get_user_directions()
-        S = 0
+        user_azi_directions = self.get_user_azi_directions()
+        user_elev_directions = self.get_user_elev_directions()
         for sec_idx in range(self.sec_size):
             dir_deg = -180+dir_unit*sec_idx
             sec_pot_users = []
-            for i in range(user_directions.shape[0]):
-                if dir_deg - dir_unit/2 <= user_directions[i] <= dir_deg + dir_unit/2 or 360+dir_deg - dir_unit/2 <= user_directions[i] <= 360+dir_deg + dir_unit/2:
-                    S += 1
+            sec_pot_users_dir = []
+            for i in range(user_azi_directions.shape[0]):
+                if dir_deg - dir_unit/2 <= user_azi_directions[i] <= dir_deg + dir_unit/2 or 360+dir_deg - dir_unit/2 <= user_azi_directions[i] <= 360+dir_deg + dir_unit/2:
                     sec_pot_users.append(self.bs_pot_users[i])
-            sector = Base_Station_Sector(dir_deg, dir_unit, sec_pot_users)
+                    sec_pot_users_dir.append((user_azi_directions[i] - dir_deg, user_elev_directions[i]))
+            sector = Base_Station_Sector(dir_deg, dir_unit, sec_pot_users, sec_pot_users_dir)
             self.sector_list.append(sector)
 
-    def get_user_directions(self):
+    def get_user_azi_directions(self):
         return np.angle([(usr[1]-self.xy[0]) + (usr[2]-self.xy[1])*1j for usr in self.bs_pot_users], deg=True)
+    
+    def get_user_elev_directions(self):
+        return 90 + np.angle([(((usr[1]-self.xy[0])**2 + (usr[2]-self.xy[1])**2)**0.5 -self.xy[0]) + (Parameters.user_height - self.h)*1j for usr in self.bs_pot_users], deg=True)
 
     def update_sec_pot_users(self):
-        user_directions = self.get_user_directions()
+        user_azi_directions = self.get_user_azi_directions()
+        user_elev_directions = self.get_user_elev_directions()
         for sec in self.sector_list:
             sec_pot_users = []
-            for i in range(user_directions.shape[0]):
-                if sec.az_dir_deg - sec.az_range/2 <= user_directions[i] <= sec.az_dir_deg + sec.az_range/2:
+            sec_pot_users_dir = []
+            for i in range(user_azi_directions.shape[0]):
+                if sec.az_dir_deg - sec.az_range/2 <= user_azi_directions[i] <= sec.az_dir_deg + sec.az_range/2 or 360+sec.az_dir_deg - sec.az_range/2 <= user_azi_directions[i] <= 360+sec.az_dir_deg + sec.az_range/2:
                     sec_pot_users.append(self.bs_pot_users[i])
-            sec.update_sec_pot_users(sec_pot_users)
+                    sec_pot_users_dir.append((user_azi_directions[i] - sec.az_dir_deg, user_elev_directions[i]))
+            sec.update_sec_pot_users(sec_pot_users, sec_pot_users_dir)
 
     def update_bs_pot_users(self, new_pot_users):
         self.bs_pot_users = new_pot_users
@@ -98,10 +106,12 @@ class Base_Station:
 
 
 class Base_Station_Sector:
-    def __init__(self, azimuth_dir_deg, azimuth_range, sec_pot_users: list) -> None:
+    def __init__(self, azimuth_dir_deg, azimuth_range, sec_pot_users: list, pot_users_dir) -> None:
         self.az_dir_deg = azimuth_dir_deg
         self.az_range = azimuth_range
         self.sec_pot_users = sec_pot_users
+        self.pot_users_dir = pot_users_dir
 
-    def update_sec_pot_users(self, new_pot_users):
+    def update_sec_pot_users(self, new_pot_users, new_pot_users_dir):
         self.sec_pot_users = new_pot_users
+        self.pot_users_dir = new_pot_users_dir
